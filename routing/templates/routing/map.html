@@ -34,118 +34,31 @@
     const geometry = {{ geometry_json|safe }};   // [[lat, lon], ...]
     const fuelStops = {{ fuel_stops_json|safe }}; // [{latitude, longitude, station_name, ...}, ...]
 
-    // Base layers: provide several options and use Stamen Terrain as a
-    // conservative default to avoid volunteer-run OSM server rate limits.
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const map = L.map('map');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19,
-    });
+    }).addTo(map);
 
-    const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 19,
-    });
-
-    const stamen = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg', {
-      attribution: 'Map tiles by <a href="https://stamen.com">Stamen Design</a>, &copy; OpenStreetMap contributors',
-      subdomains: 'abcd',
-      maxZoom: 18,
-    });
-
-    // Esri WorldStreetMap is a reliable default for light/dev usage
-    const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, FAO, NOAA, USGS',
-      maxZoom: 19,
-    });
-
-    // Initialize map with Esri by default (more reliable than volunteer tile servers)
-    const map = L.map('map', { layers: [esri] });
-
-    // Draw route and create overlay groups
-    const routeLine = L.polyline(geometry, { color: '#1a73e8', weight: 4 });
-    const routeLayer = L.layerGroup([routeLine]);
-
-    const stopsLayer = L.layerGroup();
-
-    // Add start/finish markers
-    if (geometry.length) {
-      const startMarker = L.marker(geometry[0]).bindPopup('<strong>Start</strong>');
-      const finishMarker = L.marker(geometry[geometry.length - 1]).bindPopup('<strong>Finish</strong>');
-      routeLayer.addLayer(startMarker);
-      routeLayer.addLayer(finishMarker);
-    }
-
-    // Add fuel stop markers to stopsLayer
-    fuelStops.forEach((stop, i) => {
-      const marker = L.circleMarker([stop.latitude, stop.longitude], {
-        radius: 7, color: '#e8710a', fillColor: '#ffb74d', fillOpacity: 0.95, weight: 2,
-      });
-      const popup = `<div style="font-size:13px"><b>Stop ${i + 1}: ${stop.station_name}</b><br>` +
-        `${stop.address}, ${stop.city}, ${stop.state}<br>` +
-        `<b>$${stop.price_per_gallon}/gal</b> — ${stop.gallons_purchased} gal ($${stop.cost_usd})<br>` +
-        `Mile ${stop.mile_marker}</div>`;
-      marker.bindPopup(popup);
-      stopsLayer.addLayer(marker);
-    });
-
-    // Fit map to route and add layers to map
-    routeLayer.addTo(map);
-    stopsLayer.addTo(map);
+    const routeLine = L.polyline(geometry, { color: '#1a73e8', weight: 4 }).addTo(map);
     map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
 
-    // Controls: base layers and overlays
-    const baseMaps = {
-      'Esri WorldStreetMap': esri,
-      'OpenStreetMap': osm,
-      'CARTO Voyager': carto,
-      'Terrain (Stamen)': stamen,
-    };
-    const overlayMaps = {
-      'Route': routeLayer,
-      'Fuel Stops': stopsLayer,
-    };
-    L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
-
-    // Scale control
-    L.control.scale({ metric: true, imperial: true }).addTo(map);
-
-    // Resilient tile loading: if many tile errors occur on the active base
-    // layer, automatically switch to Stamen Terrain. This helps when a
-    // provider blocks access (403) or rate-limits requests.
-    function makeErrorWatcher(tileLayer, name) {
-      let errors = 0;
-      tileLayer.on('tileerror', function () {
-        errors += 1;
-        if (errors === 1) {
-          console.warn(`${name} tile error detected`);
-        }
-        // If more than 6 tile errors occur, switch to Stamen (if not already)
-        if (errors > 6 && !map.hasLayer(stamen)) {
-          console.warn(`Switching base layer to Stamen due to repeated ${name} tile errors`);
-          map.eachLayer(function (l) {
-            // remove only base tile layers (heuristic: have _url property)
-            if (l && l._url) map.removeLayer(l);
-          });
-          stamen.addTo(map);
-        }
-      });
+    if (geometry.length) {
+      L.marker(geometry[0]).addTo(map).bindPopup('Start');
+      L.marker(geometry[geometry.length - 1]).addTo(map).bindPopup('Finish');
     }
 
-    // Attach watchers to base layers
-    makeErrorWatcher(osm, 'OSM');
-    makeErrorWatcher(carto, 'CARTO');
-    makeErrorWatcher(stamen, 'Stamen');
-    makeErrorWatcher(esri, 'Esri');
-
-    // Show a small hint in the info panel when we auto-fallback
-    const hintEl = document.createElement('div');
-    hintEl.style.marginTop = '8px';
-    hintEl.style.fontSize = '12px';
-    hintEl.style.color = '#666';
-    hintEl.id = 'tile-hint';
-    hintEl.textContent = 'Tile provider: Stamen Terrain (auto-fallback enabled)';
-    document.querySelector('.panel').appendChild(hintEl);
+    fuelStops.forEach((stop, i) => {
+      const marker = L.circleMarker([stop.latitude, stop.longitude], {
+        radius: 8, color: '#e8710a', fillColor: '#ffb74d', fillOpacity: 0.9, weight: 2,
+      }).addTo(map);
+      marker.bindPopup(
+        `<b>Stop ${i + 1}: ${stop.station_name}</b><br>` +
+        `${stop.address}, ${stop.city}, ${stop.state}<br>` +
+        `$${stop.price_per_gallon}/gal — buy ${stop.gallons_purchased} gal ($${stop.cost_usd})<br>` +
+        `Mile ${stop.mile_marker}`
+      );
+    });
   </script>
 </body>
 </html>
