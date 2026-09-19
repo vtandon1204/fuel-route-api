@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "Fuel Route Optimizer API",
+    "description": "POST a start/finish location to plan a route with optimal fuel stops.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "plan_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Plan a route (LA -> Chicago)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data.id) { pm.collectionVariables.set('plan_id', data.id); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start_location\": \"Los Angeles, CA\",\n  \"finish_location\": \"Chicago, IL\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/route-plans/", "host": ["{{base_url}}"], "path": ["api", "route-plans", ""] }
+      }
+    },
+    {
+      "name": "Get route plan",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/route-plans/{{plan_id}}/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "route-plans", "{{plan_id}}", ""]
+        }
+      }
+    },
+    {
+      "name": "View route map (open in browser)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/route-plans/{{plan_id}}/map/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "route-plans", "{{plan_id}}", "map", ""]
+        }
+      }
+    },
+    {
+      "name": "Short trip - no fuel stop needed (Sacramento -> SF)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start_location\": \"Sacramento, CA\",\n  \"finish_location\": \"San Francisco, CA\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/route-plans/", "host": ["{{base_url}}"], "path": ["api", "route-plans", ""] }
+      }
+    },
+    {
+      "name": "Invalid request - missing fields (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": { "raw": "{{base_url}}/api/route-plans/", "host": ["{{base_url}}"], "path": ["api", "route-plans", ""] }
+      }
+    }
+  ]
+}

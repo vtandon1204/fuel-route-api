@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - app_data:/app/var
+    environment:
+      - DJANGO_DEBUG=true
+
+volumes:
+  app_data:
